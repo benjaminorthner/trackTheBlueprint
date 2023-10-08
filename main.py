@@ -76,7 +76,7 @@ def exportToMigaku(maxLevel, path=None):
     
     # default path
     if path == None:
-        path = f'./migaku_known_words/MB_knownWords_level_{maxLevel}.json'
+        path = f'./migaku_known_words/MB_knownWords_level_{maxLevel:02d}.json'
 
     # write to file
     with open(path, 'w') as file:
