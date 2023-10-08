@@ -9,6 +9,8 @@ Simply navigate to the folder [_migaku_known_words_](https://github.com/benjamin
 
 You can upload this file inside the Legacy Migaku settings, on the page _Learning Status_ by clicking on the import word data _From Backup_ button.
 
+Note that the word list contains both the words and the single characters up to and including the specified level. I include the single characters as well because otherwise its a bit annoying that Migaku marks them as unknown.
+
 
 # For Programmers
 I programmed this to run in WSL (Windows subsystems for linux) and before running one should install the following packages
