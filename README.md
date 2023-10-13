@@ -20,4 +20,5 @@ sudo apt-get update
 sudo apt-get install firefox-geckodriver
 pip3 install selenium
 pip3 install hanzidentifier
+pip install cedict-utils
 ```
