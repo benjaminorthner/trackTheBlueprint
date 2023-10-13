@@ -7,9 +7,6 @@ from cedict_utils.cedict import CedictParser
 from hanzidentifier import is_traditional
 import pickle
 
-# look into pickle to save data without needing to scrape every time
-
-
 # Get list of all cedict words as list of objects
 parser = CedictParser()
 cedict_entries = parser.parse()
@@ -44,7 +41,6 @@ def findWordForm(word):
     else:
         return 0 if is_traditional(word) else 1
 
-
 # Class for single characters
 class Character:
     instances = []
@@ -63,8 +59,6 @@ class Character:
     @classmethod
     def printClass(cls):
         print([f'{i.string}' for i in cls.instances])
-
-
 
 
 # Class for words, including single character words
@@ -111,7 +105,7 @@ def exportToMigaku(maxLevel, path=None):
         if word == '狭':
             word = '狭'
         
-        if (wordObj.MBlevel == maxLevel + 1) or (word in usedCharacters):
+        if (wordObj.MBlevel > maxLevel) or (word in usedCharacters):
             continue
         
         # format required by Migaku. Number after ◴ indicates if character is both, simplified, traditional
@@ -128,68 +122,76 @@ def exportToMigaku(maxLevel, path=None):
         # must replace all ' with " for Migaku to parse
         file.write(str(exportList).replace("'", "\""))
 
+# Opens traverse summary page and downloads new characters from specified levels
+# then creates character and word objects
+def scrapeTraverse(levelsToScrape):
 
-try:
-    # Set up Firefox options for headless browsing
-    firefox_options = Options()
-    firefox_options.headless = True  # Run Firefox in headless mode (no GUI)
+    if len(levelsToScrape) == 0: 
+        print("Everything already in pickled files")
+        return
 
-    # Initialize the Firefox driver with the specified options
-    # Using firefox instead of chrome because simpler with WSL (no separate binaries needed)
-    driver = webdriver.Firefox(options=firefox_options)
+    try:
+        # Set up Firefox options for headless browsing
+        firefox_options = Options()
+        firefox_options.headless = True  # Run Firefox in headless mode (no GUI)
 
-    # loop over every MB level 1 -> 88 thats not already loaded from a pickled file
-    alreadyScrapedLevels = {word.MBlevel for word in Word.instances}
-    levelsLeftToScrape = ({i for i in range(1,89)} - alreadyScrapedLevels)
-    print(levelsLeftToScrape)
+        # Initialize the Firefox driver with the specified options
+        # Using firefox instead of chrome because simpler with WSL (no separate binaries needed)
+        driver = webdriver.Firefox(options=firefox_options)
 
-    for i, level in enumerate(levelsLeftToScrape):
-        # URL of the website
-        url = 'https://traverse.link/Mandarin_Blueprint/word-progress/?level=' + str(level)
 
-        # Open the website in the headless Firefox browser
-        driver.get(url)
+        for i, level in enumerate(levelsToScrape):
+            # URL of the website
+            url = 'https://traverse.link/Mandarin_Blueprint/word-progress/?level=' + str(level)
 
-        # Wait for a specific element to be present (in this some new characters under the all characters header)
-        wait = WebDriverWait(driver, 20)  # Wait for up to 10 seconds
-        wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, f'h3[id="All Characters"] + .MuiGrid-container > .MuiGrid-item .text-red-600')))
-        
-        # will extract the new words and characters from each of the following
-        # headings (categories) for each level
-        categories = {"All Characters":[], "All Words":[],"Nouns 名词":[], "Verbs 动词":[], "Adjectives 形容词":[], "Adverbs 副词":[], 
-                    "Pronouns 代词":[], "Measure 量词":[], "Numbers 数词":[], "Prepositions 介词":[], 
-                    "Conjunction 连词":[], "Particles 助词":[], "Mood 语气词":[]}
-        
-        # loop over the different categories
-        for category in categories:
+            # Open the website in the headless Firefox browser
+            driver.get(url)
+
+            # Wait for a specific element to be present (in this some new characters under the all characters header)
+            wait = WebDriverWait(driver, 20)  # Wait for up to 10 seconds
+            wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, f'h3[id="All Characters"] + .MuiGrid-container > .MuiGrid-item .text-red-600')))
             
-            # extract the new entries for each category
-            elements = driver.find_elements(By.CSS_SELECTOR, f'h3[id="{category}"] + .MuiGrid-container > .MuiGrid-item .text-red-600')
+            # will extract the new words and characters from each of the following
+            # headings (categories) for each level
+            categories = {"All Characters":[], "All Words":[],"Nouns 名词":[], "Verbs 动词":[], "Adjectives 形容词":[], "Adverbs 副词":[], 
+                        "Pronouns 代词":[], "Measure 量词":[], "Numbers 数词":[], "Prepositions 介词":[], 
+                        "Conjunction 连词":[], "Particles 助词":[], "Mood 语气词":[]}
+            
+            # loop over the different categories
+            for category in categories:
+                
+                # extract the new entries for each category
+                elements = driver.find_elements(By.CSS_SELECTOR, f'h3[id="{category}"] + .MuiGrid-container > .MuiGrid-item .text-red-600')
 
-            # Extract the text content of all elements
-            categories[category] = [element.text for element in elements]
-
-
-        # Convert characters and words into new Character and Word objects
-        for newChar in categories['All Characters']:
-            Character(newChar, level)
-
-        for newWord in categories['All Words']:
-            Word(newWord, level)
-
-        # Create Migaku Export for current level
-        print(i+1, "/", len(levelsLeftToScrape), " scraped")
-        exportToMigaku(level)
+                # Extract the text content of all elements
+                categories[category] = [element.text for element in elements]
 
 
-# if something goes wrong show it
-except Exception as e:
-    print(e)
+            # Convert characters and words into new Character and Word objects
+            for newChar in categories['All Characters']:
+                Character(newChar, level)
 
-# to make sure the browser is closed regardless of an error or not
-finally:
-    # Close the browser
-    driver.quit()
+            for newWord in categories['All Words']:
+                Word(newWord, level)
+
+            # Create Migaku Export for current level
+            print(i+1, "/", len(levelsLeftToScrape), " scraped")
+
+
+    # if something goes wrong show it
+    except Exception as e:
+        print(e)
+
+    # to make sure the browser is closed regardless of an error or not
+    finally:
+        # Close the browser
+        driver.quit()
+
+# scrape every MB level 1 -> 88 thats not already loaded from a pickled file
+alreadyScrapedLevels = {word.MBlevel for word in Word.instances}
+levelsLeftToScrape = ({i for i in range(1,89)} - alreadyScrapedLevels)
+scrapeTraverse(levelsLeftToScrape)
+
 
 # pickle the generated list of characters and words
 with open("pickled_files/allCharacters.pkl", 'wb') as file:
@@ -197,3 +199,7 @@ with open("pickled_files/allCharacters.pkl", 'wb') as file:
 
 with open("pickled_files/allWords.pkl", "wb") as file:
     pickle.dump(Word.instances, file)
+
+# Create Migaku export JSONs
+for level in range(1, 89):
+    exportToMigaku(level)
