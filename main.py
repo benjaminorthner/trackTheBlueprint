@@ -5,6 +5,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from cedict_utils.cedict import CedictParser
 from hanzidentifier import is_traditional
+import pinyin
 import pickle
 
 # Get list of all cedict words as list of objects
@@ -203,3 +204,19 @@ with open("pickled_files/allWords.pkl", "wb") as file:
 # Create Migaku export JSONs
 for level in range(1, 89):
     exportToMigaku(level)
+
+frequencyDict = {}
+for characterObj in Character.instances:
+    if characterObj.MBlevel > 41:
+        continue
+
+    char = characterObj.string
+    charPinyin = pinyin.get(char, format='strip')
+
+    if charPinyin in frequencyDict:
+        frequencyDict[charPinyin] += 1
+    else:
+        frequencyDict[charPinyin] = 1
+
+for w, c in dict(sorted(frequencyDict.items(), key=lambda item: item[1], reverse=True)).items():
+    print(f"{w}: {c}")
